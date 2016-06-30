@@ -1,0 +1,701 @@
+using elsystem;
+using elsystem.io;
+using elsystem.collections;
+
+inputs:
+	Path("C:\Users\Mike\Dropbox\Apps\ShinyTrades\MML.csv"),
+	ATR_Length(50),
+	Velocity_Length(2);
+	
+
+
+
+var:
+	bool IsRadarScreen(FALSE),
+	bool IsChart(FALSE),
+	bool IsBarClose(FALSE),
+	bool IsBarOpen(FALSE),
+
+	double SupplyDistal3(0),
+	double SupplyProximal3(0),
+	double SupplyDistal2(0),
+	double SupplyProximal2(0),
+	double SupplyDistal1(0),
+	double SupplyProximal1(0),
+	double DemandProximal1(0),
+	double DemandDistal1(0),
+	double DemandProximal2(0),
+	double DemandDistal2(0),
+	double DemandProximal3(0),
+	double DemandDistal3(0),
+	
+	double ATR(0),
+	double Velocity(0),
+	
+	string Supply1(""),
+	string Supply2(""),
+	string Supply3(""),
+	string Demand1(""),
+	string Demand2(""),
+	string Demand3(""),
+
+	Bool NearSupply1(False),
+	Bool InSupply1(False),
+	Bool Supply1Busted(False),
+
+	Bool NearSupply2(False),
+	Bool InSupply2(False),
+	Bool Supply2Busted(False),
+
+	Bool NearSupply3(False),
+	Bool InSupply3(False),
+	Bool Supply3Busted(False),
+
+	Bool NearDemand1(False),
+	Bool InDemand1(False),
+	Bool Demand1Busted(False),
+
+	Bool NearDemand2(False),
+	Bool InDemand2(False),
+	Bool Demand2Busted(False),
+
+	Bool NearDemand3(False),
+	Bool InDemand3(False),
+	Bool Demand3Busted(False),
+	
+	Bool AlertNearSupply1(True),
+	Bool AlertInSupply1(True),
+	Bool AlertSupply1Busted(True),
+
+	Bool AlertNearSupply2(True),
+	Bool AlertInSupply2(True),
+	Bool AlertSupply2Busted(True),
+
+	Bool AlertNearSupply3(True),
+	Bool AlertInSupply3(True),
+	Bool AlertSupply3Busted(True),
+
+	Bool AlertNearDemand1(True),
+	Bool AlertInDemand1(True),
+	Bool AlertDemand1Busted(True),
+
+	Bool AlertNearDemand2(True),
+	Bool AlertInDemand2(True),
+	Bool AlertDemand2Busted(True),
+
+	Bool AlertNearDemand3(True),
+	Bool AlertInDemand3(True),
+	Bool AlertDemand3Busted(True),
+	
+	StreamReader myFile(null),
+	GlobalDictionary GC(null),
+	string MMLSymbol(""),
+	string MMLChartSymbol(""),
+	string MMLTradeSymbol(""),
+	Vector MMLVector(null),
+	
+	DateTime LastRefreshedAt(null);
+	
+	
+
+ 
+Method DateTime LoadMasterMindLevels(string Path, elsystem.DateTime PreviousRefreshAt)
+
+Vars:
+	string CsvLine,
+	Vector Lines,
+	Vector LevelVector,
+	string LevelSymbol,
+	Bool FileRead,
+	elsystem.Datetime RetVal,
+	elsystem.Datetime NextRefreshAt,
+	elsystem.Datetime Now;
+	
+
+Begin
+
+	If (leftstr(Symbol, 6) <> "EURUSD") then
+		begin
+	
+			Return DateTime.Now;
+				
+		end
+		
+	else
+		Begin
+
+			Now = DateTime.Now;
+
+			if (PreviousRefreshAt = NULL) then
+				begin
+					NextRefreshAt = Now;
+					PreviousRefreshAt = Now;
+				end
+			Else
+				Begin
+					NextRefreshAt = PreviousRefreshAt;
+					NextRefreshAt.AddMinutes(5);
+					print(Now.tostring(), ": Previous Refresh", PreviousRefreshAt.ToString());		
+				end;
+		
+			RetVal = Now;
+				
+				
+			print(Now.tostring(), ": Next Refresh", NextRefreshAt.ToString())	;	
+	
+			If (NextRefreshAt <= Now) then
+				begin
+
+			
+					print("Refreshing files from: ", Path);	
+					print(Symbol, " At: ", elsystem.datetime.now.format("%Y-%m-%dT%H:%M:%S"));	
+					FileRead = False;	
+					Lines = new Vector();
+				
+					Try 
+								
+						myFile = StreamReader.Create(Path); 	
+				
+						{read header}
+						CsvLine = myFile.ReadLine();
+
+						{read first data line}
+						CsvLine = myFile.ReadLine();
+			
+						While (leftstr(CsvLine, 3) <> "EOF") and (not myFile.EndOfStream)
+							Begin
+								CsvLine = CsvLine.replace(Doublequote, "");
+								Lines.push_back(CsvLine);
+
+								CsvLine = myFile.ReadLine();
+
+							end;
+								
+						FileRead = True;
+					
+					catch(exception ex)
+						Print("Exception Reading File");
+						Print(ex.Message);
+						Print(ex.InnerException.Message);
+						FileRead = False;
+					
+					Finally
+						myFile.Close();		
+					End;
+									
+				
+					If (FileRead) then
+					
+						begin
+						
+							If GC = NULL then
+								GC = GlobalDictionary.create(true, "MasterMindLevels")	
+							Else
+								GC.Clear();
+				
+							While (Lines.Count > 0)
+								Begin
+									
+									CsvLine = Lines.Back() astype string;
+									Print(CsvLine);
+									
+									LevelVector = CsvLine.Split(",");
+									LevelSymbol = LevelVector[0] astype string;
+								
+									GC.Add(LevelSymbol, LevelVector);
+									print("GC Add: ", LevelSymbol);
+									
+									Lines.pop_back();						
+								
+								end;
+							
+							RetVal = DateTime.Now;
+						end;
+					
+				end;
+
+		end;		
+	Return RetVal;
+
+End;
+
+
+Method void SendAlert(String Message, String Levels, double Price, double Velocity)
+Begin
+
+	If bardatetime.Hour > 6 and bardatetime.Hour < 20 then
+	
+		begin
+
+			If (Symbol <> MMLTradeSymbol) then
+				alert(string.concat(MMLTradeSymbol, newline, Message, newline, Levels, newline, numtostr(Price, 4), " @ ", numtostr(Velocity, 2)))
+			Else		
+				alert(string.concat(Message, newline, Levels, newline, numtostr(Price, 4), " @ ", numtostr(Velocity, 2)));
+		
+		end;
+end;
+
+{ If the bar had closed on the last tick, then this must be the open tick }
+IsBarOpen = IsBarClose;
+
+IsBarClose = (barstatus(1) = 2);
+IsRadarScreen = (GetAppInfo(aiApplicationType) = cRadarScreen);
+IsChart = (GetAppInfo(aiApplicationType) = cChart);
+
+GC = GlobalDictionary.create(true, "MasterMindLevels");		
+
+
+Once 
+	begin
+		if IsRadarScreen then
+			LastRefreshedAt = LoadMasterMindLevels(path, LastRefreshedAt);
+	end;
+	
+	
+		
+if IsRadarScreen then
+	begin
+
+
+		SetPlotType(1, ptString);
+		SetPlotType(2, ptString);
+		SetPlotType(3, ptString);
+		SetPlotType(4, ptString);
+		SetPlotType(5, ptString);
+		SetPlotType(6, ptString);
+
+		SetPlotColor(1, White);
+		SetPlotColor(2, White);
+		SetPlotColor(3, White);
+		SetPlotColor(4, White);
+		SetPlotColor(5, White);
+		SetPlotColor(6, White);
+		
+
+		SetPlotbgColor(1, Black);
+		SetPlotbgColor(2, Black);
+		SetPlotbgColor(3, Black);
+		SetPlotbgColor(4, Black);
+		SetPlotbgColor(5, Black);
+		SetPlotbgColor(6, Black);
+
+
+		SetPlotColor(8, White);
+		SetPlotbgColor(8, Black);
+		SetPlotColor(9, White);
+		SetPlotbgColor(9, Black);
+		
+	end
+else
+	begin
+
+		SetPlotType(11, ptDouble);
+		SetPlotType(12, ptDouble);
+		SetPlotType(21, ptDouble);
+		SetPlotType(22, ptDouble);
+		SetPlotType(31, ptDouble);
+		SetPlotType(32, ptDouble);
+
+		SetPlotType(41, ptDouble);
+		SetPlotType(42, ptDouble);
+		SetPlotType(51, ptDouble);
+		SetPlotType(52, ptDouble);
+		SetPlotType(61, ptDouble);
+		SetPlotType(62, ptDouble);
+				
+		SetPlotWidth(11, 2);
+		SetPlotWidth(21, 2);
+		SetPlotWidth(31, 2);
+		SetPlotWidth(41, 2);
+		SetPlotWidth(51, 2);
+		SetPlotWidth(61, 2);
+
+		SetPlotWidth(12, 1);
+		SetPlotWidth(22, 1);
+		SetPlotWidth(32, 1);
+		SetPlotWidth(42, 1);
+		SetPlotWidth(52, 1);
+		SetPlotWidth(62, 1);
+		
+		SetPlotColor(11, Green);
+		SetPlotColor(21, Green);
+		SetPlotColor(31, Green);
+		SetPlotColor(41, Green);
+		SetPlotColor(51, Green);
+		SetPlotColor(61, Green);
+
+		SetPlotColor(12, Blue);
+		SetPlotColor(22, Blue);
+		SetPlotColor(32, Blue);
+		SetPlotColor(42, Blue);
+		SetPlotColor(52, Blue);
+		SetPlotColor(62, Blue);
+	end;
+
+
+
+	
+
+
+
+
+
+if IsRadarScreen and IsBarClose and (leftstr(Symbol, 6) = "EURUSD") then
+	begin
+		LastRefreshedAt = LoadMasterMindLevels(path, LastRefreshedAt);
+	end;
+
+
+
+if BarNumber > 1 and gc.Contains(symbol) then
+	begin
+		MMLVector = GC[symbol] astype vector;
+		print("GC contains ", Symbol);
+	end
+Else
+	begin
+		MMLVector = null;
+	end;
+
+{
+if IsBarClose then 
+	begin
+		If gc.Contains(symbol) then
+			begin
+				print(Symbol, " Bar Close At: ", elsystem.datetime.now.format("%Y-%m-%dT%H:%M:%S"));	
+				
+				MMLVector = GC[symbol] astype vector;
+			end
+		Else
+			begin
+				MMLVector = null;
+			end;
+	end; 
+}	
+
+If BarNumber > 1 and MMLVector <> null then
+	begin
+	
+		MMLChartSymbol = MMLVector[1] astype string;
+		MMLTradeSymbol = MMLVector[2] astype string;
+			
+		
+		SupplyDistal3 = double.parse(MMLVector[3] astype string);
+		SupplyProximal3 = double.parse(MMLVector[4] astype string);
+		SupplyDistal2 = double.parse(MMLVector[5] astype string);
+		SupplyProximal2 = double.parse(MMLVector[6] astype string);
+		SupplyDistal1 = double.parse(MMLVector[7] astype string);
+		SupplyProximal1 = double.parse(MMLVector[8] astype string);
+		DemandProximal1 = double.parse(MMLVector[9] astype string);
+		DemandDistal1 = double.parse(MMLVector[10] astype string);
+		DemandProximal2 = double.parse(MMLVector[11] astype string);
+		DemandDistal2 = double.parse(MMLVector[12] astype string);
+		DemandProximal3 = double.parse(MMLVector[13] astype string);
+		DemandDistal3 = double.parse(MMLVector[14] astype string);
+
+
+		Supply3 = string.Concat(numtostr(SupplyProximal3, 4), " / ", numtostr(SupplyDistal3, 4));
+		Supply2 = string.Concat(numtostr(SupplyProximal2, 4), " / ", numtostr(SupplyDistal2, 4));
+		Supply1 = string.Concat(numtostr(SupplyProximal1, 4), " / ", numtostr(SupplyDistal1, 4));
+		Demand1 = string.Concat(numtostr(DemandProximal1, 4), " / ", numtostr(DemandDistal1, 4));
+		Demand2 = string.Concat(numtostr(DemandProximal2, 4), " / ", numtostr(DemandDistal2, 4));
+		Demand3 = string.Concat(numtostr(DemandProximal3, 4), " / ", numtostr(DemandDistal3, 4));
+			
+
+		{
+			Supply = 1, 2, 3; Demand = 4, 5, 6
+			Proximal = 1, Distal = 2
+		}
+				
+				
+	
+	if IsRadarScreen then
+		begin
+			
+			ATR = AvgTrueRange(ATR_Length);
+			if ATR > 0 then
+				Velocity = AvgTrueRange(Velocity_Length) / ATR
+			else
+				Velocity = 0.0;
+			
+		print ("Plotting ", Symbol, ": ", Supply1);
+			
+			Plot1(Supply3, "Supply3");
+			
+			Plot2(Supply2, "Supply2");
+				
+			Plot3(Supply1, "Supply1");
+			Plot4(Demand1, "Demand1");
+			Plot5(Demand2, "Demand2");
+			Plot6(Demand3, "Demand3");
+			
+			Plot8(ATR, "ATR20");
+			Plot9(Velocity, "Velocity");
+			
+			 
+
+
+			Supply1Busted = (close > SupplyDistal1) or Supply1Busted;
+			if not Supply1Busted then
+				begin
+					InSupply1 = (close >= SupplyProximal1);
+					if not InSupply1 then
+						begin
+							NearSupply1 = ((SupplyProximal1 - close) / ATR) < 2.0;
+						end;
+				end
+			else 
+				begin
+
+					Supply2Busted = (close > SupplyDistal2) or Supply2Busted;
+					if not Supply2Busted then
+						begin
+							InSupply2 = (close >= SupplyProximal2);
+							if not InSupply2 then
+								begin
+									NearSupply2 = ((SupplyProximal2 - close) / ATR) < 2.0;
+								end;
+						end
+						
+					else 
+						
+						Supply3Busted = (close > SupplyDistal3) or Supply3Busted;
+						if not Supply3Busted then
+							begin
+								InSupply3 = (close >= SupplyProximal3);
+								if not InSupply3 then
+									begin
+										NearSupply3 = ((SupplyProximal3 - close) / ATR) < 2.0;
+									end;
+							end;			
+				
+				end;
+				
+
+
+
+			Demand1Busted = (close < DemandDistal1) or Demand1Busted;
+			if not Demand1Busted then
+				begin
+					InDemand1 = (close <= DemandProximal1);
+					if not InDemand1 then
+						begin
+							NearDemand1 = ((close - DemandProximal1) / ATR) < 2.0;
+						end;
+				end
+			else 
+				begin
+
+					Demand2Busted = (close < DemandDistal2) or Demand2Busted;
+					if not Demand2Busted then
+						begin
+							InDemand2 = (close <= DemandProximal2);
+							if not InDemand2 then
+								begin
+									NearDemand2 = ((close - DemandProximal2) / ATR) < 2.0;
+								end;
+						end
+						
+					else 
+						
+						Demand3Busted = (close < DemandDistal3) or Demand3Busted;
+						if not Demand3Busted then
+							begin
+								InDemand3 = (close <= DemandProximal3);
+								if not InDemand3 then
+									begin
+										NearDemand3 = ((close - DemandProximal3) / ATR) < 2.0;
+									end;
+							end;			
+				
+				end;
+
+
+
+
+			end;
+	
+			
+
+				
+
+	if SupplyProximal1 < 90000 then
+		Plot11(SupplyProximal1, "SupplyProximal1");
+
+	if SupplyDistal1 < 90000 then
+		Plot12(SupplyDistal1, "SupplyDistal1");
+
+	if SupplyProximal2 < 90000 then
+		Plot21(SupplyProximal2, "SupplyProximal2");
+
+	if SupplyDistal2 < 90000 then
+		Plot22(SupplyDistal2, "SupplyDistal2");
+	
+	if SupplyProximal3 < 90000 then
+		Plot31(SupplyProximal3, "SupplyProximal3");
+
+	if SupplyDistal3 < 90000 then
+		Plot32(SupplyDistal3, "SupplyDistal3");
+	
+	Plot41(DemandProximal1, "DemandProximal1");
+	Plot42(DemandDistal1, "DemandDistal1");
+
+	Plot51(DemandProximal2, "DemandProximal2");
+	Plot52(DemandDistal2, "DemandDistal2");
+	
+	Plot61(DemandProximal3, "DemandProximal3");
+	Plot62(DemandDistal3, "DemandDistal3");
+			
+			
+		
+		
+	if IsRadarScreen then
+		begin
+			SetPlotColor(1, White);
+			if Close > SupplyDistal2 then
+				SetPlotbgcolor(1, LightGray)
+			else
+				SetPlotbgcolor(1, Black);
+				
+			SetPlotColor(2, White);
+			if Close > SupplyDistal1 and Close <= SupplyDistal2 then
+				SetPlotbgcolor(2, LightGray)
+			else
+				SetPlotbgcolor(2, Black);				
+
+			SetPlotColor(3, White);
+			if Close <= SupplyDistal1 then
+				SetPlotbgcolor(3, LightGray)
+			else
+				SetPlotbgcolor(3, Black);				
+				
+
+			SetPlotColor(6, White);
+			if Close < DemandDistal2 then
+				SetPlotbgcolor(6, LightGray)
+			else
+				SetPlotbgcolor(6, Black);
+				
+			SetPlotColor(5, White);
+			if Close < DemandDistal1 and Close >= DemandDistal2 then
+				SetPlotbgcolor(5, LightGray)
+			else
+				SetPlotbgcolor(5, Black);				
+
+			SetPlotColor(4, White);
+			if Close >= DemandDistal1 then
+				SetPlotbgcolor(4, LightGray)
+			else
+				SetPlotbgcolor(4, Black);				
+
+
+			SetPlotColor(8, White);
+			SetPlotbgColor(8, Black);
+			SetPlotColor(9, White);
+			SetPlotbgColor(9, Black);		
+		end;		
+		
+	
+	if NearSupply1 and AlertNearSupply1 then 
+		begin
+			SendAlert("Near Supply 1", Supply1, Close, Velocity);
+			AlertNearSupply1 = False;
+		end
+	else if InSupply1 and AlertInSupply1 then 
+		begin
+			SendAlert("In Supply 1", Supply1, Close, Velocity);
+			AlertInSupply1 = False;
+		end	
+	else if Supply1Busted and AlertSupply1Busted then 
+		begin
+			SendAlert("Supply 1 Busted", Supply1, Close, Velocity);
+			AlertSupply1Busted = False;
+		end	
+		
+	else if NearSupply2 and AlertNearSupply2 then 
+		begin
+			SendAlert("Near Supply 2", Supply2, Close, Velocity);
+			AlertNearSupply2 = False;
+		end
+	else if InSupply2 and AlertInSupply2 then 
+		begin
+			SendAlert("In Supply 2", Supply2, Close, Velocity);
+			AlertInSupply2 = False;
+		end	
+	else if Supply1Busted and AlertSupply1Busted then 
+		begin
+			SendAlert("Supply 2 Busted", Supply2, Close, Velocity);
+			AlertSupply1Busted = False;
+		end	
+		
+	else if NearSupply3 and AlertNearSupply3 then 
+		begin
+			SendAlert("Near Supply 3", Supply3, Close, Velocity);
+			AlertNearSupply3 = False;
+		end
+	else if InSupply3 and AlertInSupply3 then 
+		begin
+			SendAlert("In Supply 3", Supply3, Close, Velocity);
+			AlertInSupply3 = False;
+		end	
+	else if Supply3Busted and AlertSupply3Busted then 
+		begin
+			SendAlert("Supply 3 Busted", Supply3, Close, Velocity);
+			AlertSupply3Busted = False;
+		end;
+
+
+	if NearDemand1 and AlertNearDemand1 then 
+		begin
+			SendAlert("Near Demand 1", Demand1, Close, Velocity);
+			AlertNearDemand1 = False;
+		end
+	else if InDemand1 and AlertInDemand1 then 
+		begin
+			SendAlert("In Demand 1", Demand1, Close, Velocity);
+			AlertInDemand1 = False;
+		end	
+	else if Demand1Busted and AlertDemand1Busted then 
+		begin
+			SendAlert("Demand 1 Busted", Demand1, Close, Velocity);
+			AlertDemand1Busted = False;
+		end	
+		
+	else if NearDemand2 and AlertNearDemand2 then 
+		begin
+			SendAlert("Near Demand 2", Demand2, Close, Velocity);
+			AlertNearDemand2 = False;
+		end
+	else if InDemand2 and AlertInDemand2 then 
+		begin
+			SendAlert("In Demand 2", Demand2, Close, Velocity);
+			AlertInDemand2 = False;
+		end	
+	else if Demand1Busted and AlertDemand1Busted then 
+		begin
+			SendAlert("Demand 2 Busted", Demand2, Close, Velocity);
+			AlertDemand1Busted = False;
+		end	
+		
+	else if NearDemand3 and AlertNearDemand3 then 
+		begin
+			SendAlert("Near Demand 3", Demand3, Close, Velocity);
+			AlertNearDemand3 = False;
+		end
+	else if InDemand3 and AlertInDemand3 then 
+		begin
+			SendAlert("In Demand 3", Demand3, Close, Velocity);
+			AlertInDemand3 = False;
+		end	
+	else if Demand3Busted and AlertDemand3Busted then 
+		begin
+			SendAlert("Demand 3 Busted", Demand3, Close, Velocity);
+			AlertDemand3Busted = False;
+		end;
+
+
+
+end;
+	
+	
+	
