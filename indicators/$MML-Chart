@@ -1,0 +1,185 @@
+using elsystem;
+using elsystem.io;
+using elsystem.collections;
+
+inputs:
+	Path("C:\Users\Mike\Dropbox\Apps\ShinyTrades\MML.csv");
+	
+
+
+
+var:
+	bool IsChart(FALSE),
+	bool IsBarClose(FALSE),
+	bool IsBarOpen(FALSE),
+
+	double SupplyDistal3(0),
+	double SupplyProximal3(0),
+	double SupplyDistal2(0),
+	double SupplyProximal2(0),
+	double SupplyDistal1(0),
+	double SupplyProximal1(0),
+	double DemandProximal1(0),
+	double DemandDistal1(0),
+	double DemandProximal2(0),
+	double DemandDistal2(0),
+	double DemandProximal3(0),
+	double DemandDistal3(0),
+	
+
+	GlobalDictionary GC(null),
+	string MMLSymbol(""),
+	string MMLChartSymbol(""),
+	string MMLTradeSymbol(""),
+	Vector MMLVector(null);
+	
+
+Method void SendNewFileAlert(DateTime FileTimeStamp)
+Begin
+	print("*** SENDING NEW FILE ALERT ***");
+	alert("New levels file processed at ", FileTimeStamp.Format("%Y:%M:%D %H:%S"));
+
+end;
+
+Method void SendAlert(String Message, String Levels, double Price, double Velocity)
+Begin
+
+	If bardatetime.Hour > 6 and bardatetime.Hour < 20 then
+	
+		begin
+
+			If (Symbol <> MMLTradeSymbol) then
+				alert(string.concat(MMLTradeSymbol, newline, Message, newline, Levels, newline, numtostr(Price, 4), " @ ", numtostr(Velocity, 2)))
+			Else		
+				alert(string.concat(Message, newline, Levels, newline, numtostr(Price, 4), " @ ", numtostr(Velocity, 2)));
+		
+		end;
+end;	
+
+
+
+
+{ If the bar had closed on the last tick, then this must be the open tick }
+IsBarOpen = IsBarClose;
+
+IsBarClose = (barstatus(1) = 2);
+IsChart = (GetAppInfo(aiApplicationType) = cChart);
+
+GC = GlobalDictionary.create(true, "MasterMindLevels");		
+
+
+
+		SetPlotType(11, ptDouble);
+		SetPlotType(12, ptDouble);
+		SetPlotType(21, ptDouble);
+		SetPlotType(22, ptDouble);
+		SetPlotType(31, ptDouble);
+		SetPlotType(32, ptDouble);
+
+		SetPlotType(41, ptDouble);
+		SetPlotType(42, ptDouble);
+		SetPlotType(51, ptDouble);
+		SetPlotType(52, ptDouble);
+		SetPlotType(61, ptDouble);
+		SetPlotType(62, ptDouble);
+				
+		SetPlotWidth(11, 2);
+		SetPlotWidth(21, 2);
+		SetPlotWidth(31, 2);
+		SetPlotWidth(41, 2);
+		SetPlotWidth(51, 2);
+		SetPlotWidth(61, 2);
+
+		SetPlotWidth(12, 1);
+		SetPlotWidth(22, 1);
+		SetPlotWidth(32, 1);
+		SetPlotWidth(42, 1);
+		SetPlotWidth(52, 1);
+		SetPlotWidth(62, 1);
+		
+		SetPlotColor(11, Green);
+		SetPlotColor(21, Green);
+		SetPlotColor(31, Green);
+		SetPlotColor(41, Green);
+		SetPlotColor(51, Green);
+		SetPlotColor(61, Green);
+
+		SetPlotColor(12, Blue);
+		SetPlotColor(22, Blue);
+		SetPlotColor(32, Blue);
+		SetPlotColor(42, Blue);
+		SetPlotColor(52, Blue);
+		SetPlotColor(62, Blue);
+
+
+
+	
+
+if gc.Contains(symbol) then
+	begin
+
+		MMLVector = GC[symbol] astype vector;
+
+	
+		MMLChartSymbol = MMLVector[1] astype string;
+		MMLTradeSymbol = MMLVector[2] astype string;
+			
+		
+		SupplyDistal3 = double.parse(MMLVector[3] astype string);
+		SupplyProximal3 = double.parse(MMLVector[4] astype string);
+		SupplyDistal2 = double.parse(MMLVector[5] astype string);
+		SupplyProximal2 = double.parse(MMLVector[6] astype string);
+		SupplyDistal1 = double.parse(MMLVector[7] astype string);
+		SupplyProximal1 = double.parse(MMLVector[8] astype string);
+		DemandProximal1 = double.parse(MMLVector[9] astype string);
+		DemandDistal1 = double.parse(MMLVector[10] astype string);
+		DemandProximal2 = double.parse(MMLVector[11] astype string);
+		DemandDistal2 = double.parse(MMLVector[12] astype string);
+		DemandProximal3 = double.parse(MMLVector[13] astype string);
+		DemandDistal3 = double.parse(MMLVector[14] astype string);
+
+				
+
+	if SupplyProximal1 < 90000 then
+		Plot11(SupplyProximal1, "SupplyProximal1");
+
+	if SupplyDistal1 < 90000 then
+		Plot12(SupplyDistal1, "SupplyDistal1");
+
+	if SupplyProximal2 < 90000 then
+		Plot21(SupplyProximal2, "SupplyProximal2");
+
+	if SupplyDistal2 < 90000 then
+		Plot22(SupplyDistal2, "SupplyDistal2");
+	
+	if SupplyProximal3 < 90000 then
+		Plot31(SupplyProximal3, "SupplyProximal3");
+
+	if SupplyDistal3 < 90000 then
+		Plot32(SupplyDistal3, "SupplyDistal3");
+	
+	If DemandProximal1 > 0 then
+		Plot41(DemandProximal1, "DemandProximal1");
+		
+	If DemandDistal1 > 0 then
+		Plot42(DemandDistal1, "DemandDistal1");
+
+	If DemandProximal2 > 0 then
+		Plot51(DemandProximal2, "DemandProximal2");
+
+	If DemandDistal2 > 0 then
+		Plot52(DemandDistal2, "DemandDistal2");
+	
+	If DemandProximal3 > 0 then
+		Plot61(DemandProximal3, "DemandProximal3");
+
+	If DemandDistal3 > 0 then
+		Plot62(DemandDistal3, "DemandDistal3");
+			
+			
+
+
+end;
+	
+	
+	
