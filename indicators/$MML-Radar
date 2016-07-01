@@ -1,0 +1,311 @@
+using elsystem;
+using elsystem.io;
+using elsystem.collections;
+
+inputs:
+	Path("C:\Users\Mike\Dropbox\Apps\ShinyTrades\MML.csv"),
+	ATR_Length(50),
+	Velocity_Length(2);
+	
+
+
+
+var:
+	bool IsRadarScreen(FALSE),
+	bool IsBarClose(FALSE),
+	bool IsBarOpen(FALSE),
+
+	double SupplyDistal3(0),
+	double SupplyProximal3(0),
+	double SupplyDistal2(0),
+	double SupplyProximal2(0),
+	double SupplyDistal1(0),
+	double SupplyProximal1(0),
+	double DemandProximal1(0),
+	double DemandDistal1(0),
+	double DemandProximal2(0),
+	double DemandDistal2(0),
+	double DemandProximal3(0),
+	double DemandDistal3(0),
+	
+	double ATR(0),
+	double Velocity(0),
+	
+	string Supply1(""),
+	string Supply2(""),
+	string Supply3(""),
+	string Demand1(""),
+	string Demand2(""),
+	string Demand3(""),
+
+	Bool NearSupply1(False),
+	Bool InSupply1(False),
+	Bool Supply1Busted(False),
+
+	Bool NearSupply2(False),
+	Bool InSupply2(False),
+	Bool Supply2Busted(False),
+
+	Bool NearSupply3(False),
+	Bool InSupply3(False),
+	Bool Supply3Busted(False),
+
+	Bool NearDemand1(False),
+	Bool InDemand1(False),
+	Bool Demand1Busted(False),
+
+	Bool NearDemand2(False),
+	Bool InDemand2(False),
+	Bool Demand2Busted(False),
+
+	Bool NearDemand3(False),
+	Bool InDemand3(False),
+	Bool Demand3Busted(False),
+	
+	Bool AlertNearSupply1(True),
+	Bool AlertInSupply1(True),
+	Bool AlertSupply1Busted(True),
+
+	Bool AlertNearSupply2(True),
+	Bool AlertInSupply2(True),
+	Bool AlertSupply2Busted(True),
+
+	Bool AlertNearSupply3(True),
+	Bool AlertInSupply3(True),
+	Bool AlertSupply3Busted(True),
+
+	Bool AlertNearDemand1(True),
+	Bool AlertInDemand1(True),
+	Bool AlertDemand1Busted(True),
+
+	Bool AlertNearDemand2(True),
+	Bool AlertInDemand2(True),
+	Bool AlertDemand2Busted(True),
+
+	Bool AlertNearDemand3(True),
+	Bool AlertInDemand3(True),
+	Bool AlertDemand3Busted(True),
+	
+	StreamReader myFile(null),
+	GlobalDictionary GC(null),
+	string MMLSymbol(""),
+	string MMLChartSymbol(""),
+	string MMLTradeSymbol(""),
+	Vector MMLVector(null),
+	
+	DateTime LastRefreshedAt(null),
+	DateTime LatestFileTimeStamp(null);
+	
+
+
+
+Method void SendAlert(String Message, String Levels, double Price, double Velocity)
+Begin
+
+	If bardatetime.Hour > 6 and bardatetime.Hour < 20 then
+	
+		begin
+
+
+			If (Symbol <> MMLTradeSymbol) then
+				Message = string.concat(MMLTradeSymbol, newline, Message, newline, Levels, newline, numtostr(Price, 4), " @ ", numtostr(Velocity, 2))
+			Else		
+				Message = string.concat(Message, newline, Levels, newline, numtostr(Price, 4), " @ ", numtostr(Velocity, 2));
+
+			
+			print(Message);
+			{alert(Message);}
+
+		end;
+end;	
+
+
+{ If the bar had closed on the last tick, then this must be the open tick }
+IsBarOpen = IsBarClose;
+
+IsBarClose = (barstatus(1) = 2);
+IsRadarScreen = (GetAppInfo(aiApplicationType) = cRadarScreen);
+
+GC = GlobalDictionary.create(true, "MasterMindLevels");		
+
+
+if IsRadarScreen then
+	begin
+
+
+		SetPlotType(1, ptString);
+		SetPlotType(2, ptString);
+		SetPlotType(3, ptString);
+		SetPlotType(4, ptString);
+		SetPlotType(5, ptString);
+		SetPlotType(6, ptString);
+
+		SetPlotColor(1, White);
+		SetPlotColor(2, White);
+		SetPlotColor(3, White);
+		SetPlotColor(4, White);
+		SetPlotColor(5, White);
+		SetPlotColor(6, White);
+		
+
+		SetPlotbgColor(1, Black);
+		SetPlotbgColor(2, Black);
+		SetPlotbgColor(3, Black);
+		SetPlotbgColor(4, Black);
+		SetPlotbgColor(5, Black);
+		SetPlotbgColor(6, Black);
+
+
+		SetPlotColor(8, White);
+		SetPlotbgColor(8, Black);
+		SetPlotColor(9, White);
+		SetPlotbgColor(9, Black);
+		
+	end;
+
+
+
+if gc.Contains(symbol) and IsBarClose then
+	begin
+		MMLVector = GC[symbol] astype vector;
+		{print("GC contains ", Symbol);}
+
+		MMLChartSymbol = MMLVector[1] astype string;
+		MMLTradeSymbol = MMLVector[2] astype string;
+			
+		
+		SupplyDistal3 = double.parse(MMLVector[3] astype string);
+		SupplyProximal3 = double.parse(MMLVector[4] astype string);
+		SupplyDistal2 = double.parse(MMLVector[5] astype string);
+		SupplyProximal2 = double.parse(MMLVector[6] astype string);
+		SupplyDistal1 = double.parse(MMLVector[7] astype string);
+		SupplyProximal1 = double.parse(MMLVector[8] astype string);
+		DemandProximal1 = double.parse(MMLVector[9] astype string);
+		DemandDistal1 = double.parse(MMLVector[10] astype string);
+		DemandProximal2 = double.parse(MMLVector[11] astype string);
+		DemandDistal2 = double.parse(MMLVector[12] astype string);
+		DemandProximal3 = double.parse(MMLVector[13] astype string);
+		DemandDistal3 = double.parse(MMLVector[14] astype string);
+
+
+
+		ATR = AvgTrueRange(ATR_Length);
+		if ATR > 0 then
+			Velocity = AvgTrueRange(Velocity_Length) / ATR
+		else
+			Velocity = 0.0;
+
+		If (HighD(0) > SupplyDistal3) then 
+			Supply3 = "Busted"
+		Else if (Last > SupplyProximal3) and (Last < SupplyDistal3) then
+			Supply3 = "In"
+		Else if (HighD(0) > SupplyProximal3) then
+			Supply3 = "Pentrated"
+		Else If ((SupplyProximal3 - Last) / ATR) < 2.0 then
+			Supply3 = "Near"
+		Else
+			Supply3 = "";
+		
+		If (HighD(0) > SupplyDistal2) then 
+			Supply2 = "Busted"
+		Else if (Last > SupplyProximal2) and (Last < SupplyDistal2) then
+			Supply2 = "In"
+		Else if (HighD(0) > SupplyProximal2) then
+			Supply2 = "Pentrated"
+		Else If ((SupplyProximal2 - Last) / ATR) < 2.0 then
+			Supply2 = "Near"
+		Else 
+			Supply2 = "";
+		
+		If (HighD(0) > SupplyDistal1) then 
+			Supply1 = "Busted"
+		Else if (Last > SupplyProximal3) and (Last < SupplyDistal1) then
+			Supply1 = "In"
+		Else if (HighD(0) > SupplyProximal3) then
+			Supply1 = "Pentrated"
+		Else If ((SupplyProximal1 - Last) / ATR) < 2.0 then
+			Supply1 = "Near"
+		Else 
+			Supply1 = "";
+			
+
+		If (LowD(0) < DemandDistal1) then 
+			Demand1 = "Busted"
+		Else if (Last < DemandProximal1) and (Last > SupplyDistal1) then
+			Demand1 = "In"
+		Else if (LowD(0) < DemandProximal1) then
+			Demand1 = "Pentrated"
+		Else If ((Last - DemandProximal1) / ATR) < 2.0 then
+			Demand1 = "Near"
+		Else 
+			Demand1 = "";
+
+		If (LowD(0) < DemandDistal2) then 
+			Demand2 = "Busted"
+		Else if (Last < DemandProximal2) and (Last > SupplyDistal2) then
+			Demand2 = "In"
+		Else if (LowD(0) < DemandProximal2) then
+			Demand2 = "Pentrated"
+		Else If ((Last - DemandProximal2) / ATR) < 2.0 then
+			Demand2 = "Near"
+		Else 
+			Demand2 = "";				
+
+		If (LowD(0) < DemandDistal3) then 
+			Demand3 = "Busted"
+		Else if (Last < DemandProximal3) and (Last > SupplyDistal3) then
+			Demand3 = "In"
+		Else if (LowD(0) < DemandProximal3) then
+			Demand3 = "Pentrated"
+		Else If ((Last - DemandProximal3) / ATR) < 2.0 then
+			Demand3 = "Near"
+		Else 
+			Demand3 = "";				
+
+				
+
+			
+		{print ("Plotting ", Symbol, ": ", Supply1);}
+			
+			Plot1(Supply3, "Supply3");
+			
+			Plot2(Supply2, "Supply2");
+				
+			Plot3(Supply1, "Supply1");
+			Plot4(Demand1, "Demand1");
+			Plot5(Demand2, "Demand2");
+			Plot6(Demand3, "Demand3");
+			
+			Plot8(ATR, "ATR20");
+			Plot9(Velocity, "Velocity");
+			
+			
+
+
+
+		If Supply3 <> "" and Supply3 <> Supply3[1] then
+			SendAlert("Supply3", Supply3, Close, Velocity);
+
+		If Supply2 <> "" and Supply2 <> Supply2[1] then
+			SendAlert("Supply3", Supply2, Close, Velocity);
+
+		If Supply1 <> "" and Supply1<> Supply1[1] then
+			SendAlert("Supply3", Supply1, Close, Velocity);
+			
+		If Demand3 <> "" and Demand3 <> Supply3[1] then
+			SendAlert("Demand3", Demand3, Close, Velocity);
+
+		If Demand2 <> "" and Demand2 <> Supply2[1] then
+			SendAlert("Demand3", Demand2, Close, Velocity);
+
+		If Demand1 <> "" and Demand1<> Supply1[1] then
+			SendAlert("Demand3", Demand1, Close, Velocity);
+
+
+
+
+
+end;
+	
+	
+	
