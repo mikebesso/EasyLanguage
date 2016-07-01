@@ -1,0 +1,304 @@
+using elsystem;
+using elsystem.io;
+using elsystem.collections;
+
+inputs:
+	Path("C:\Users\Mike\Dropbox\Apps\ShinyTrades\MML.csv");
+
+
+var:
+	bool IsRadarScreen(FALSE),
+	bool IsBarClose(FALSE),
+	bool IsBarOpen(FALSE),
+
+	double SupplyDistal3(0),
+	double SupplyProximal3(0),
+	double SupplyDistal2(0),
+	double SupplyProximal2(0),
+	double SupplyDistal1(0),
+	double SupplyProximal1(0),
+	double DemandProximal1(0),
+	double DemandDistal1(0),
+	double DemandProximal2(0),
+	double DemandDistal2(0),
+	double DemandProximal3(0),
+	double DemandDistal3(0),
+	
+	double ATR(0),
+	double Velocity(0),
+	
+	string Supply1(""),
+	string Supply2(""),
+	string Supply3(""),
+	string Demand1(""),
+	string Demand2(""),
+	string Demand3(""),
+
+	
+	StreamReader myFile(null),
+	GlobalDictionary GC(null),
+	string MMLSymbol(""),
+	string MMLChartSymbol(""),
+	string MMLTradeSymbol(""),
+	Vector MMLVector(null),
+	
+	DateTime LastRefreshedAt(null),
+	DateTime LatestFileTimeStamp(null);
+	
+
+Method void SendNewFileAlert(DateTime FileTimeStamp)
+Begin
+	print("*** SENDING NEW FILE ALERT ***");
+	alert("New levels file processed at ", FileTimeStamp.Format("%Y:%M:%D %H:%S"));
+
+end;
+	
+
+ 
+Method DateTime LoadMasterMindLevels(string Path, elsystem.DateTime PreviousRefreshAt)
+
+Vars:
+	string CsvLine,
+	Vector Lines,
+	Vector LevelVector,
+	string LevelSymbol,
+	Bool FileRead,
+	bool SendAlertOnNewFile,
+	elsystem.Datetime NextRefreshAt,
+	elsystem.Datetime CurrentFileTimeStamp;
+	
+
+Begin
+	
+	If (leftstr(Symbol, 6) <> "EURUSD") then
+		begin
+			Return DateTime.Now;
+		end
+		
+	else
+		Begin
+
+			SendAlertOnNewFile = FALSE;
+			FileRead = False;	
+
+			NextRefreshAt = PreviousRefreshAt;
+			NextRefreshAt.AddMinutes(5);
+			
+print(Symbol, ": Previous Refresh: ", PreviousRefreshAt.format("%Y-%m-%dT%H:%M:%S")) 		;	
+print(Symbol, ": Next Refresh: ", NextRefreshAt.format("%Y-%m-%dT%H:%M:%S")) 		;	
+		
+			If (NextRefreshAt >= DateTime.Now) then
+				begin
+
+					print("Refreshing files from: ", Path);	
+					print(Symbol, " At: ", elsystem.datetime.now.format("%Y-%m-%dT%H:%M:%S"));	
+					Lines = new Vector();
+				
+					Try 
+								
+						myFile = StreamReader.Create(Path); 	
+				
+						{read header}
+						CsvLine = myFile.ReadLine();
+
+						{read first data line}
+						CsvLine = myFile.ReadLine();
+			
+						While (leftstr(CsvLine, 3) <> "EOF") and (not myFile.EndOfStream)
+							Begin
+								CsvLine = CsvLine.replace(Doublequote, "");
+								Lines.push_back(CsvLine);
+
+								CsvLine = myFile.ReadLine();
+
+							end;
+				
+							
+							
+							
+						If (leftstr(CsvLine, 5) = "EOF,2") then
+							Begin
+							
+								LevelVector = CsvLine.Split(",");
+								CurrentFileTimeStamp = datetime.create(
+									int.parse(LevelVector[1] astype string),
+									int.parse(LevelVector[2] astype string),
+									int.parse(LevelVector[3] astype string),
+									int.parse(LevelVector[4] astype string),
+									int.parse(LevelVector[5] astype string),
+									int.parse(LevelVector[6] astype string)
+								);					
+								
+								SendAlertOnNewFile = TRUE;		
+								
+							End
+						Else
+							begin
+								CurrentFileTimeStamp = DateTime.Now;
+								LatestFileTimeStamp = datetime.create(2001, 01, 01);
+							end;
+								
+print("CurrentFileTimeStamp: ", CurrentFileTimeStamp.Format("%Y-%m-%dT%H:%M:%S"))		;					
+print("LatestFileTimeStamp: ", LatestFileTimeStamp.Format("%Y-%m-%dT%H:%M:%S"))		;		
+								
+						If (CurrentFileTimeStamp > LatestFileTimeStamp) then
+							begin
+
+								FileRead = True;
+								LatestFileTimeStamp = CurrentFileTimeStamp;
+
+								If (SendAlertOnNewFile) then
+									Begin
+										SendNewFileAlert(CurrentFileTimeStamp);
+									end;
+
+							end;
+print("Update LatestFileTimeStamp: ", LatestFileTimeStamp.Format("%Y-%m-%dT%H:%M:%S"))		;					
+					
+					catch(exception ex)
+						Print("Exception Reading File");
+						Print(ex.Message);
+						Print(ex.InnerException.Message);
+						FileRead = False;
+					
+					Finally
+						myFile.Close();		
+					End;
+									
+				
+					If (FileRead) then
+					
+						begin
+						
+							print("READING FILE");
+							
+							If GC = NULL then
+								GC = GlobalDictionary.create(true, "MasterMindLevels")	
+							Else
+								GC.Clear();
+				
+							While (Lines.Count > 0)
+								Begin
+									
+									CsvLine = Lines.Back() astype string;
+									
+									LevelVector = CsvLine.Split(",");
+									LevelSymbol = LevelVector[0] astype string;
+								
+									GC.Add(LevelSymbol, LevelVector);
+									
+									Lines.pop_back();						
+								
+								end;
+							
+						end;
+					
+				end;
+
+		end;		
+	Return datetime.now;
+
+End;
+
+
+
+{ If the bar had closed on the last tick, then this must be the open tick }
+IsBarOpen = IsBarClose;
+
+IsBarClose = (barstatus(1) = 2);
+IsRadarScreen = (GetAppInfo(aiApplicationType) = cRadarScreen);
+
+GC = GlobalDictionary.create(true, "MasterMindLevels");		
+
+
+Once 
+	begin
+		If (LatestFileTimeStamp = null) then
+			LatestFileTimeStamp = datetime.create(1999, 01, 01);
+			
+		if (LastRefreshedAt = NULL) then 
+			begin
+				LastRefreshedAt = datetime.now;
+				LastRefreshedAt.AddMinutes(-5);
+			end;
+		
+		if IsRadarScreen then
+			LastRefreshedAt = LoadMasterMindLevels(path, LastRefreshedAt);
+	end;
+	
+		
+
+
+SetPlotType(1, ptString);
+SetPlotType(2, ptString);
+SetPlotType(3, ptString);
+SetPlotType(4, ptString);
+SetPlotType(5, ptString);
+SetPlotType(6, ptString);
+
+	
+	
+
+
+
+
+
+if IsBarClose then
+	begin
+
+		If (leftstr(Symbol, 6) = "EURUSD") then
+			begin
+				LastRefreshedAt = LoadMasterMindLevels(path, LastRefreshedAt);
+			end;
+		
+	
+	
+	
+		if gc.Contains(symbol) then
+			begin
+				MMLVector = GC[symbol] astype vector;
+				print("GC contains ", Symbol);
+	
+				MMLChartSymbol = MMLVector[1] astype string;
+				MMLTradeSymbol = MMLVector[2] astype string;
+					
+				
+				SupplyDistal3 = double.parse(MMLVector[3] astype string);
+				SupplyProximal3 = double.parse(MMLVector[4] astype string);
+				SupplyDistal2 = double.parse(MMLVector[5] astype string);
+				SupplyProximal2 = double.parse(MMLVector[6] astype string);
+				SupplyDistal1 = double.parse(MMLVector[7] astype string);
+				SupplyProximal1 = double.parse(MMLVector[8] astype string);
+				DemandProximal1 = double.parse(MMLVector[9] astype string);
+				DemandDistal1 = double.parse(MMLVector[10] astype string);
+				DemandProximal2 = double.parse(MMLVector[11] astype string);
+				DemandDistal2 = double.parse(MMLVector[12] astype string);
+				DemandProximal3 = double.parse(MMLVector[13] astype string);
+				DemandDistal3 = double.parse(MMLVector[14] astype string);
+		
+		
+				Supply3 = string.Concat(numtostr(SupplyProximal3, 4), " / ", numtostr(SupplyDistal3, 4));
+				Supply2 = string.Concat(numtostr(SupplyProximal2, 4), " / ", numtostr(SupplyDistal2, 4));
+				Supply1 = string.Concat(numtostr(SupplyProximal1, 4), " / ", numtostr(SupplyDistal1, 4));
+				Demand1 = string.Concat(numtostr(DemandProximal1, 4), " / ", numtostr(DemandDistal1, 4));
+				Demand2 = string.Concat(numtostr(DemandProximal2, 4), " / ", numtostr(DemandDistal2, 4));
+				Demand3 = string.Concat(numtostr(DemandProximal3, 4), " / ", numtostr(DemandDistal3, 4));
+					
+		
+				Plot1(Supply3, "Far Supply");
+				Plot2(Supply2, "Mid Supply");
+				Plot3(Supply1, "Near Supply");
+				Plot4(Demand1, "Near Demand");
+				Plot5(Demand2, "Mid Demand");
+				Plot6(Demand3, "Far Demand");
+						
+			end;
+				
+	
+	end;				
+
+
+
+
+	
+	
