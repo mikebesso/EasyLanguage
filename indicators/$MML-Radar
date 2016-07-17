@@ -5,7 +5,8 @@ using elsystem.collections;
 inputs:
 	Path("C:\Users\Mike\Dropbox\Apps\ShinyTrades\MML.csv"),
 	ATR_Length(50),
-	Velocity_Length(2);
+	Velocity_Length(2),
+	NearDelta(1.25);
 	
 
 
@@ -114,7 +115,7 @@ Begin
 
 			
 			print(Message);
-			{alert(Message);}
+			alert(Message);
 
 		end;
 end;	
@@ -165,6 +166,10 @@ if IsRadarScreen then
 
 
 
+
+
+
+
 if gc.Contains(symbol) and IsBarClose then
 	begin
 		MMLVector = GC[symbol] astype vector;
@@ -195,72 +200,86 @@ if gc.Contains(symbol) and IsBarClose then
 		else
 			Velocity = 0.0;
 
-		If (HighD(0) > SupplyDistal3) then 
-			Supply3 = "Busted"
-		Else if (Last > SupplyProximal3) and (Last < SupplyDistal3) then
-			Supply3 = "In"
-		Else if (HighD(0) > SupplyProximal3) then
-			Supply3 = "Pentrated"
-		Else If ((SupplyProximal3 - Last) / ATR) < 2.0 then
-			Supply3 = "Near"
+		If bardatetime.Hour < 9 then
+		
+			begin
+				Supply3 = "";
+				Supply2 = "";
+				Supply1 = "";
+				Demand1 = "";
+				Demand2 = "";
+				Demand3 = "";
+			end 
 		Else
-			Supply3 = "";
+			begin
+
+				If (HighD(0) > SupplyDistal3) then 
+					Supply3 = "Busted"
+				Else if (Last > SupplyProximal3) and (Last < SupplyDistal3) then
+					Supply3 = "In"
+				Else if (HighD(0) > SupplyProximal3) then
+					Supply3 = "Pentrated"
+				Else If ((SupplyProximal3 - Last) / ATR) < NearDelta then
+					Supply3 = "Near"
+				Else
+					Supply3 = "";
+				
+				If (HighD(0) > SupplyDistal2) then 
+					Supply2 = "Busted"
+				Else if (Last > SupplyProximal2) and (Last < SupplyDistal2) then
+					Supply2 = "In"
+				Else if (HighD(0) > SupplyProximal2) then
+					Supply2 = "Pentrated"
+				Else If ((SupplyProximal2 - Last) / ATR) < NearDelta then
+					Supply2 = "Near"
+				Else 
+					Supply2 = "";
+				
+				If (HighD(0) > SupplyDistal1) then 
+					Supply1 = "Busted"
+				Else if (Last > SupplyProximal3) and (Last < SupplyDistal1) then
+					Supply1 = "In"
+				Else if (HighD(0) > SupplyProximal3) then
+					Supply1 = "Pentrated"
+				Else If ((SupplyProximal1 - Last) / ATR) < NearDelta then
+					Supply1 = "Near"
+				Else 
+					Supply1 = "";
+					
 		
-		If (HighD(0) > SupplyDistal2) then 
-			Supply2 = "Busted"
-		Else if (Last > SupplyProximal2) and (Last < SupplyDistal2) then
-			Supply2 = "In"
-		Else if (HighD(0) > SupplyProximal2) then
-			Supply2 = "Pentrated"
-		Else If ((SupplyProximal2 - Last) / ATR) < 2.0 then
-			Supply2 = "Near"
-		Else 
-			Supply2 = "";
+				If (LowD(0) < DemandDistal1) then 
+					Demand1 = "Busted"
+				Else if (Last < DemandProximal1) and (Last > SupplyDistal1) then
+					Demand1 = "In"
+				Else if (LowD(0) < DemandProximal1) then
+					Demand1 = "Pentrated"
+				Else If ((Last - DemandProximal1) / ATR) < NearDelta then
+					Demand1 = "Near"
+				Else 
+					Demand1 = "";
 		
-		If (HighD(0) > SupplyDistal1) then 
-			Supply1 = "Busted"
-		Else if (Last > SupplyProximal3) and (Last < SupplyDistal1) then
-			Supply1 = "In"
-		Else if (HighD(0) > SupplyProximal3) then
-			Supply1 = "Pentrated"
-		Else If ((SupplyProximal1 - Last) / ATR) < 2.0 then
-			Supply1 = "Near"
-		Else 
-			Supply1 = "";
-			
-
-		If (LowD(0) < DemandDistal1) then 
-			Demand1 = "Busted"
-		Else if (Last < DemandProximal1) and (Last > SupplyDistal1) then
-			Demand1 = "In"
-		Else if (LowD(0) < DemandProximal1) then
-			Demand1 = "Pentrated"
-		Else If ((Last - DemandProximal1) / ATR) < 2.0 then
-			Demand1 = "Near"
-		Else 
-			Demand1 = "";
-
-		If (LowD(0) < DemandDistal2) then 
-			Demand2 = "Busted"
-		Else if (Last < DemandProximal2) and (Last > SupplyDistal2) then
-			Demand2 = "In"
-		Else if (LowD(0) < DemandProximal2) then
-			Demand2 = "Pentrated"
-		Else If ((Last - DemandProximal2) / ATR) < 2.0 then
-			Demand2 = "Near"
-		Else 
-			Demand2 = "";				
-
-		If (LowD(0) < DemandDistal3) then 
-			Demand3 = "Busted"
-		Else if (Last < DemandProximal3) and (Last > SupplyDistal3) then
-			Demand3 = "In"
-		Else if (LowD(0) < DemandProximal3) then
-			Demand3 = "Pentrated"
-		Else If ((Last - DemandProximal3) / ATR) < 2.0 then
-			Demand3 = "Near"
-		Else 
-			Demand3 = "";				
+				If (LowD(0) < DemandDistal2) then 
+					Demand2 = "Busted"
+				Else if (Last < DemandProximal2) and (Last > SupplyDistal2) then
+					Demand2 = "In"
+				Else if (LowD(0) < DemandProximal2) then
+					Demand2 = "Pentrated"
+				Else If ((Last - DemandProximal2) / ATR) < NearDelta then
+					Demand2 = "Near"
+				Else 
+					Demand2 = "";				
+		
+				If (LowD(0) < DemandDistal3) then 
+					Demand3 = "Busted"
+				Else if (Last < DemandProximal3) and (Last > SupplyDistal3) then
+					Demand3 = "In"
+				Else if (LowD(0) < DemandProximal3) then
+					Demand3 = "Pentrated"
+				Else If ((Last - DemandProximal3) / ATR) < NearDelta then
+					Demand3 = "Near"
+				Else 
+					Demand3 = "";
+			end;		
 
 				
 
@@ -287,19 +306,19 @@ if gc.Contains(symbol) and IsBarClose then
 			SendAlert("Supply3", Supply3, Close, Velocity);
 
 		If Supply2 <> "" and Supply2 <> Supply2[1] then
-			SendAlert("Supply3", Supply2, Close, Velocity);
+			SendAlert("Supply2", Supply2, Close, Velocity);
 
-		If Supply1 <> "" and Supply1<> Supply1[1] then
-			SendAlert("Supply3", Supply1, Close, Velocity);
+		If Supply1 <> "" and Supply1 <> Supply1[1] then
+			SendAlert("Supply1", Supply1, Close, Velocity);
 			
-		If Demand3 <> "" and Demand3 <> Supply3[1] then
+		If Demand3 <> "" and Demand1 <> Demand1[1] then
+			SendAlert("Demand1", Demand1, Close, Velocity);
+
+		If Demand2 <> "" and Demand2 <> Demand2[1] then
+			SendAlert("Demand2", Demand2, Close, Velocity);
+
+		If Demand1 <> "" and Demand3<> Demand3[1] then
 			SendAlert("Demand3", Demand3, Close, Velocity);
-
-		If Demand2 <> "" and Demand2 <> Supply2[1] then
-			SendAlert("Demand3", Demand2, Close, Velocity);
-
-		If Demand1 <> "" and Demand1<> Supply1[1] then
-			SendAlert("Demand3", Demand1, Close, Velocity);
 
 
 
